@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#2b4495" />
   <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Asistente%20LKL%203%20Bandas%22%2C%22short_name%22%3A%22LKL%203B%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23101217%22%2C%22theme_color%22%3A%22%232b4495%22%7D" />
-  <title>Asistente LKL / Base 50 para billar a 3 bandas - línea corregida</title>
+  <title>Asistente LKL / Base 50 para billar a 3 bandas - cm en vivo</title>
   <style>
     :root{
       --bg:#101217;
@@ -83,7 +83,9 @@
     legend{padding:0 6px; color:#f2d08d; font-weight:700; font-size:13px; letter-spacing:.02em}
     label{display:block; font-size:13px; color:var(--muted); margin:10px 0 6px}
     select,input[type="range"],input[type="number"],button{width:100%}
-    select,input[type="number"],button{
+    input.posCm{font-variant-numeric:tabular-nums; font-size:17px}
+    input.posCm::-webkit-outer-spin-button,input.posCm::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+    select,input[type="number"],input[type="text"],button{
       border:1px solid rgba(255,255,255,.12);
       background:var(--panel2);
       color:var(--ink);
@@ -92,7 +94,7 @@
       font-size:14px;
       outline:none;
     }
-    select:focus,input[type="number"]:focus,button:focus{border-color:#e5c27d; box-shadow:0 0 0 3px rgba(229,194,125,.14)}
+    select:focus,input[type="number"]:focus,input[type="text"]:focus,button:focus{border-color:#e5c27d; box-shadow:0 0 0 3px rgba(229,194,125,.14)}
     input[type="range"]{accent-color:#e7bd6a}
     input[type="range"]:disabled{opacity:.35}
     .ballBox{border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px; margin:10px 0; background:rgba(255,255,255,.035)}
@@ -186,14 +188,14 @@
     <aside class="panel">
       <fieldset>
         <legend>0. Ubicación precisa de las bolas</legend>
-        <p class="small">Puede arrastrar las bolas o digitar distancias en centímetros. Ambas formas se sincronizan automáticamente. Mesa patrón: 284 × 142 cm.</p>
+        <p class="small">Puede arrastrar las bolas o escribir directamente las distancias en centímetros. Use punto o coma decimal. La bola se mueve mientras escribe. Mesa patrón: 284 × 142 cm.</p>
 
         <div class="ballBox">
           <h3>Blanca tacadora</h3>
           <div class="cmrow">
             <div>
               <label for="whiteLongCm">Distancia a banda larga</label>
-              <input id="whiteLongCm" class="posCm" data-ball="white" data-axis="long" type="number" min="0" max="142" step="0.1" />
+              <input id="whiteLongCm" class="posCm" data-ball="white" data-axis="long" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="whiteLongRef">Banda larga</label>
@@ -206,7 +208,7 @@
           <div class="cmrow">
             <div>
               <label for="whiteShortCm">Distancia a banda corta</label>
-              <input id="whiteShortCm" class="posCm" data-ball="white" data-axis="short" type="number" min="0" max="284" step="0.1" />
+              <input id="whiteShortCm" class="posCm" data-ball="white" data-axis="short" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="whiteShortRef">Banda corta</label>
@@ -223,7 +225,7 @@
           <div class="cmrow">
             <div>
               <label for="yellowLongCm">Distancia a banda larga</label>
-              <input id="yellowLongCm" class="posCm" data-ball="yellow" data-axis="long" type="number" min="0" max="142" step="0.1" />
+              <input id="yellowLongCm" class="posCm" data-ball="yellow" data-axis="long" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="yellowLongRef">Banda larga</label>
@@ -236,7 +238,7 @@
           <div class="cmrow">
             <div>
               <label for="yellowShortCm">Distancia a banda corta</label>
-              <input id="yellowShortCm" class="posCm" data-ball="yellow" data-axis="short" type="number" min="0" max="284" step="0.1" />
+              <input id="yellowShortCm" class="posCm" data-ball="yellow" data-axis="short" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="yellowShortRef">Banda corta</label>
@@ -253,7 +255,7 @@
           <div class="cmrow">
             <div>
               <label for="redLongCm">Distancia a banda larga</label>
-              <input id="redLongCm" class="posCm" data-ball="red" data-axis="long" type="number" min="0" max="142" step="0.1" />
+              <input id="redLongCm" class="posCm" data-ball="red" data-axis="long" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="redLongRef">Banda larga</label>
@@ -266,7 +268,7 @@
           <div class="cmrow">
             <div>
               <label for="redShortCm">Distancia a banda corta</label>
-              <input id="redShortCm" class="posCm" data-ball="red" data-axis="short" type="number" min="0" max="284" step="0.1" />
+              <input id="redShortCm" class="posCm" data-ball="red" data-axis="short" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="cm" />
             </div>
             <div>
               <label for="redShortRef">Banda corta</label>
@@ -568,31 +570,52 @@
     return clampBallToTable({x,y});
   }
 
+  function parseCmInput(value){
+    if(typeof value !== 'string') return NaN;
+    const cleaned = value.trim().replace(',', '.');
+    if(cleaned === '') return NaN;
+    return parseFloat(cleaned);
+  }
+
   function updatePositionInputs(){
     syncingPositionInputs = true;
+    const active = document.activeElement;
     for(const key of ['white','yellow','red']){
       const longRef = ids(`${key}LongRef`).value;
       const shortRef = ids(`${key}ShortRef`).value;
       const cm = worldToCm(balls[key], longRef, shortRef);
-      ids(`${key}LongCm`).value = fmt(cm.longCm,1);
-      ids(`${key}ShortCm`).value = fmt(cm.shortCm,1);
+      const longInput = ids(`${key}LongCm`);
+      const shortInput = ids(`${key}ShortCm`);
+
+      // No sobrescriba el campo que el usuario está editando en ese instante.
+      if(active !== longInput) longInput.value = fmt(cm.longCm,1);
+      if(active !== shortInput) shortInput.value = fmt(cm.shortCm,1);
     }
     syncingPositionInputs = false;
   }
 
   function updateBallFromCmInputs(key){
     if(syncingPositionInputs) return;
+
     const longRef = ids(`${key}LongRef`).value;
     const shortRef = ids(`${key}ShortRef`).value;
     const current = worldToCm(balls[key], longRef, shortRef);
-    const longCm = parseFloat(ids(`${key}LongCm`).value);
-    const shortCm = parseFloat(ids(`${key}ShortCm`).value);
+
+    const longRaw = ids(`${key}LongCm`).value;
+    const shortRaw = ids(`${key}ShortCm`).value;
+    const longCm = parseCmInput(longRaw);
+    const shortCm = parseCmInput(shortRaw);
+
+    // Si ambos campos están vacíos o inválidos, no mueva la bola.
+    if(!Number.isFinite(longCm) && !Number.isFinite(shortCm)) return;
+
     const p = cmToWorld(
-      Number.isFinite(longCm) ? longCm : current.longCm,
+      Number.isFinite(longCm) ? clamp(longCm, 0, TABLE_CM.H) : current.longCm,
       longRef,
-      Number.isFinite(shortCm) ? shortCm : current.shortCm,
+      Number.isFinite(shortCm) ? clamp(shortCm, 0, TABLE_CM.W) : current.shortCm,
       shortRef
     );
+
     balls[key] = p;
     draw();
   }
@@ -1096,8 +1119,35 @@
 
   function setupPositionInputHandlers(){
     for(const key of ['white','yellow','red']){
-      ids(`${key}LongCm`).addEventListener('input', () => updateBallFromCmInputs(key));
-      ids(`${key}ShortCm`).addEventListener('input', () => updateBallFromCmInputs(key));
+      for(const axis of ['Long','Short']){
+        const input = ids(`${key}${axis}Cm`);
+
+        input.addEventListener('focus', () => {
+          setTimeout(() => input.select(), 0);
+        });
+
+        // En iPad y PC, la bola se mueve mientras se escribe el valor.
+        // updatePositionInputs no sobrescribe el campo activo, así que la digitación no se interrumpe.
+        input.addEventListener('input', () => {
+          updateBallFromCmInputs(key);
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter'){
+            e.preventDefault();
+            updateBallFromCmInputs(key);
+            input.blur();
+          }
+        });
+
+        input.addEventListener('change', () => updateBallFromCmInputs(key));
+        input.addEventListener('blur', () => {
+          updateBallFromCmInputs(key);
+          updatePositionInputs();
+        });
+      }
+
+      // Cambiar la banda de referencia no mueve la bola: solo recalcula la distancia mostrada.
       ids(`${key}LongRef`).addEventListener('change', () => { updatePositionInputs(); draw(); });
       ids(`${key}ShortRef`).addEventListener('change', () => { updatePositionInputs(); draw(); });
     }

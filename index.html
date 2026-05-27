@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#2b4495" />
   <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Asistente%20LKL%203%20Bandas%22%2C%22short_name%22%3A%22LKL%203B%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23101217%22%2C%22theme_color%22%3A%22%232b4495%22%7D" />
-  <title>Asistente LKL / Base 50 para billar a 3 bandas - cm en vivo</title>
+  <title>Asistente LKL / Base 50 para billar a 3 bandas - salida UMB izquierda</title>
   <style>
     :root{
       --bg:#101217;
@@ -165,7 +165,7 @@
   <header>
     <div>
       <h1>Asistente LKL / Base 50 para billar a 3 bandas</h1>
-      <div class="subtitle">Arrastre las bolas, elija la secuencia y ajuste efecto/golpe. El cálculo usa una mesa patrón premium con correcciones internas conservadoras y un tiro ancla para la salida estándar. Versión optimizada para iPad en orientación vertical.</div>
+      <div class="subtitle">Arrastre las bolas, elija la secuencia y ajuste efecto/golpe. El cálculo usa una mesa patrón premium con correcciones internas conservadoras y arranca en la posición oficial de salida UMB por la izquierda. Versión optimizada para iPad en orientación vertical.</div>
     </div>
   </header>
 
@@ -188,7 +188,7 @@
     <aside class="panel">
       <fieldset>
         <legend>0. Ubicación precisa de las bolas</legend>
-        <p class="small">Puede arrastrar las bolas o escribir directamente las distancias en centímetros. Use punto o coma decimal. La bola se mueve mientras escribe. Mesa patrón: 284 × 142 cm.</p>
+        <p class="small">Puede arrastrar las bolas o escribir directamente las distancias en centímetros. Use punto o coma decimal. La bola se mueve mientras escribe. Mesa patrón: 284 × 142 cm. Al iniciar, las bolas quedan en la salida UMB por la izquierda.</p>
 
         <div class="ballBox">
           <h3>Blanca tacadora</h3>
@@ -292,7 +292,7 @@
         <label id="firstBallLabel" for="firstBall">Primera bola</label>
         <select id="firstBall">
           <option value="yellow">Amarilla</option>
-          <option value="red">Roja</option>
+          <option value="red" selected>Roja</option>
         </select>
 
         <label for="showMarks">Marcas guía de salida</label>
@@ -307,14 +307,14 @@
             <select id="rail1">
               <option value="bottom">Larga inferior</option>
               <option value="right">Corta derecha</option>
-              <option value="top">Larga superior</option>
+              <option value="top" selected>Larga superior</option>
               <option value="left">Corta izquierda</option>
             </select>
           </div>
           <div>
             <label for="rail2">Segunda banda</label>
             <select id="rail2">
-              <option value="right">Corta derecha</option>
+              <option value="right" selected>Corta derecha</option>
               <option value="top">Larga superior</option>
               <option value="left">Corta izquierda</option>
               <option value="bottom">Larga inferior</option>
@@ -328,7 +328,7 @@
           <option value="none">No fijarla</option>
           <option value="top">Larga superior</option>
           <option value="right">Corta derecha</option>
-          <option value="bottom">Larga inferior</option>
+          <option value="bottom" selected>Larga inferior</option>
           <option value="left">Corta izquierda</option>
         </select>
 
@@ -420,7 +420,7 @@
     {x:20,y:25}, {x:40,y:25}, {x:60,y:25}
   ];
 
-  let balls = { white:{x:14.4, y:30.4}, yellow:{x:34.4, y:16}, red:{x:65.6, y:7.2} };
+  let balls = { white:{x:20, y:25}, yellow:{x:20, y:20}, red:{x:60, y:20} };
   const initialBalls = JSON.parse(JSON.stringify(balls));
   let dragKey = null;
   let geom = { scale:1, ox:0, oy:0, w:0, h:0, dpr:1 };

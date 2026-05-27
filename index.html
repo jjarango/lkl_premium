@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#2b4495" />
   <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Asistente%20LKL%203%20Bandas%22%2C%22short_name%22%3A%22LKL%203B%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23101217%22%2C%22theme_color%22%3A%22%232b4495%22%7D" />
-  <title>Asistente LKL / Base 50 para billar a 3 bandas - salida UMB izquierda</title>
+  <title>Asistente LKL / Base 50 para billar a 3 bandas - Plus plegado</title>
   <style>
     :root{
       --bg:#101217;
@@ -165,7 +165,7 @@
   <header>
     <div>
       <h1>Asistente LKL / Base 50 para billar a 3 bandas</h1>
-      <div class="subtitle">Arrastre las bolas, elija la secuencia y ajuste efecto/golpe. El cálculo usa una mesa patrón premium con correcciones internas conservadoras y arranca en la posición oficial de salida UMB por la izquierda. Versión optimizada para iPad en orientación vertical.</div>
+      <div class="subtitle">Arrastre las bolas, elija la secuencia y ajuste efecto/golpe. El cálculo usa una mesa patrón premium. Permite alternar entre LKL/Base 50, corta-larga-corta y vueltas largas y/o Plus. Versión optimizada para iPad en orientación vertical.</div>
     </div>
   </header>
 
@@ -187,8 +187,25 @@
 
     <aside class="panel">
       <fieldset>
+        <legend>Marcas y líneas de referencia</legend>
+        <label for="showMarks">Visualización</label>
+        <select id="showMarks">
+          <option value="show">Ver marcas y líneas</option>
+          <option value="hide">Ocultar marcas y líneas</option>
+        </select>
+
+        <label for="systemMode">Sistema de cálculo</label>
+        <select id="systemMode">
+          <option value="lkl" selected>LKL / Base 50</option>
+          <option value="clc">Corta-larga-corta</option>
+          <option value="plus">Vueltas largas y/o Plus</option>
+        </select>
+        <p class="small">En LKL la app conserva el comportamiento actual. En Corta-larga-corta usa un módulo específico para esa familia. En Vueltas largas y/o Plus la app respeta la secuencia completa de bandas que usted seleccione.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>0. Ubicación precisa de las bolas</legend>
-        <p class="small">Puede arrastrar las bolas o escribir directamente las distancias en centímetros. Use punto o coma decimal. La bola se mueve mientras escribe. Mesa patrón: 284 × 142 cm. Al iniciar, las bolas quedan en la salida UMB por la izquierda.</p>
+        <p class="small">Puede arrastrar las bolas o escribir directamente las distancias en centímetros. Use punto o coma decimal. La bola se mueve mientras escribe. Mesa patrón: 284 × 142 cm. Al iniciar, las bolas quedan en la salida UMB por la izquierda. Se muestran líneas de referencia tenues sobre el paño, incluyendo las tres horizontales alineadas con los puntos guía centrales.</p>
 
         <div class="ballBox">
           <h3>Blanca tacadora</h3>
@@ -293,12 +310,6 @@
         <select id="firstBall">
           <option value="yellow">Amarilla</option>
           <option value="red" selected>Roja</option>
-        </select>
-
-        <label for="showMarks">Marcas guía de salida</label>
-        <select id="showMarks">
-          <option value="show">Ver marcas</option>
-          <option value="hide">Ocultar marcas</option>
         </select>
 
         <div class="row">
@@ -415,9 +426,9 @@
   const ballNames = { white:'blanca', yellow:'amarilla', red:'roja' };
   const colors = { white:'#f8f4e6', yellow:'#ffd23f', red:'#db3832' };
   const START_MARKS = [
-    {x:20,y:15}, {x:40,y:15}, {x:60,y:15},
-    {x:20,y:20}, {x:40,y:20}, {x:60,y:20},
-    {x:20,y:25}, {x:40,y:25}, {x:60,y:25}
+    {x:20,y:14.788732}, {x:40,y:14.788732}, {x:60,y:14.788732},
+    {x:20,y:20.000000}, {x:40,y:20.000000}, {x:60,y:20.000000},
+    {x:20,y:25.211268}, {x:40,y:25.211268}, {x:60,y:25.211268}
   ];
 
   let balls = { white:{x:20, y:25}, yellow:{x:20, y:20}, red:{x:60, y:20} };
@@ -518,6 +529,7 @@
   }
   function controls(){
     return {
+      systemMode:ids('systemMode').value,
       mode:ids('mode').value, firstBall:ids('firstBall').value, rail1:ids('rail1').value, rail2:ids('rail2').value,
       thirdRail:ids('thirdRail').value, fourthRail:ids('fourthRail').value, english:ids('english').value,
       tips:parseFloat(ids('tips').value), tipMm:parseFloat(ids('tipMm').value), stroke:ids('stroke').value
@@ -750,6 +762,364 @@
     };
   }
 
+  function rotate(v, radians){
+    const c = Math.cos(radians), s = Math.sin(radians);
+    return {x:v.x*c - v.y*s, y:v.x*s + v.y*c};
+  }
+
+  function railDistance(p, rail){
+    if(rail === 'top') return p.y;
+    if(rail === 'bottom') return TABLE.H - p.y;
+    if(rail === 'left') return p.x;
+    if(rail === 'right') return TABLE.W - p.x;
+    return 0;
+  }
+
+  function railTangentSign(rail, secondRail){
+    // Signo inicial para curvar la salida después de la primera banda.
+    // Es una convención geométrica prudente; el Renversé real depende mucho del taco.
+    if(rail === 'top' || rail === 'bottom'){
+      return secondRail === 'left' ? -1 : 1;
+    }
+    return secondRail === 'top' ? 1 : -1;
+  }
+
+  function renverseCorrectionModel(c, path, start, target, rawAttack, effectLevel, effectiveTips){
+    const angle = angleToFirstRail(start, rawAttack, c.rail1);
+    const distRail = railDistance(start, c.rail1);
+    const sign = englishSign(c.english) || 1;
+    const nearFactor = clamp(1 - distRail / 12, 0, 1);
+    const seqHuman = path.seq.map(r => railType(r)).join('-');
+    const effectHuman = c.english === 'neutral' ? 'neutro 0' : `${c.english === 'positive' ? 'positivo' : 'negativo'} ${effectLevel}`;
+
+    // En Renversé la corrección puede ser mayor que en LKL, pero se mantiene limitada
+    // para no destruir la figura. La cercanía a la banda y el efecto dominan.
+    const effectPoints = sign * effectiveTips * (1.65 + nearFactor * .85);
+    const anglePoints = angle < 18 ? sign * 1.15 : (angle > 42 ? -sign * .65 : 0);
+    const strokePoints = c.stroke === 'long' ? sign * .80 : (c.stroke === 'short' ? sign * .25 : -sign * .55);
+    const totalRaw = effectPoints + anglePoints + strokePoints;
+    const total = clamp(totalRaw, -9, 9);
+
+    return {
+      familyKey:'REN',
+      familyHuman:`Renversé ${seqHuman}`,
+      startZone:zonePoint(start),
+      arrivalZone:zonePoint(target),
+      angle,
+      angleText:angleClass(angle),
+      familyPoints:anglePoints,
+      effectPoints,
+      strokePoints,
+      totalRaw,
+      total,
+      anchor:null,
+      diagnosticText:`Familia detectada: Renversé / ${seqHuman} / salida ${zonePoint(start)} / llegada ${zonePoint(target)} / ${angleClass(angle)} / efecto ${effectHuman} / golpe ${strokeText(c.stroke)}`
+    };
+  }
+
+  function renverseVisualPathFromAttack(start, target, seq, attackPoint, c, effectiveTips){
+    if(!attackPoint || !seq || seq.length === 0) return null;
+
+    const points = [{...start}, {...attackPoint}];
+    let dir = reflectDir(norm(sub(attackPoint, start)), seq[0]);
+
+    // Giro adicional después del primer rebote: representa el dominio del efecto.
+    // No pretende ser una simulación física completa; es una guía visual de la familia Renversé.
+    const sign = (englishSign(c.english) || 1) * railTangentSign(seq[0], seq[1] || c.rail2);
+    const strokeAdj = c.stroke === 'long' ? 5 : (c.stroke === 'short' ? 1 : -3);
+    const turnDeg = clamp(10 + effectiveTips * 9 + strokeAdj, 4, 32);
+    dir = norm(rotate(dir, sign * turnDeg * Math.PI / 180));
+
+    let p = add(attackPoint, mul(dir, 1e-5));
+    let valid = true;
+
+    for(let i = 1; i < seq.length; i++){
+      const hit = rayBoundary(p, dir);
+      if(!hit){ valid = false; break; }
+      points.push(hit.point);
+      dir = reflectDir(dir, hit.rail);
+      p = add(hit.point, mul(dir, 1e-5));
+    }
+
+    points.push({...target});
+    return {points, valid};
+  }
+
+  function isShortRail(r){ return r === 'left' || r === 'right'; }
+  function isLongRail(r){ return r === 'top' || r === 'bottom'; }
+  function oppositeShort(r){ return r === 'left' ? 'right' : 'left'; }
+
+  function oppositeLong(r){ return r === 'top' ? 'bottom' : 'top'; }
+
+  function oppositeSameType(r){
+    if(r === 'left' || r === 'right') return oppositeShort(r);
+    return oppositeLong(r);
+  }
+
+  function defaultOppositeTypeRail(r){
+    // Si la primera banda es corta, la segunda debe ser larga; si es larga, la segunda debe ser corta.
+    if(r === 'left' || r === 'right') return 'top';
+    return 'right';
+  }
+
+  function enforceLongTourControls(c){
+    // Vueltas largas / Plus: en esta familia la app debe obedecer la secuencia
+    // escogida por el usuario. No se reescribe automáticamente la tercera ni
+    // la cuarta banda, porque muchas jugadas Plus repiten la misma banda larga.
+    // La trayectoria se calcula con las bandas seleccionadas en pantalla.
+    return c;
+  }
+
+  function enforceClcControls(c){
+    // En modo Corta-larga-corta, la secuencia debe ser corta → larga → corta.
+    // Se corrige suavemente la selección para evitar combinaciones imposibles.
+    if(!isShortRail(c.rail1)){
+      c.rail1 = 'right';
+      ids('rail1').value = c.rail1;
+    }
+    if(!isLongRail(c.rail2)){
+      c.rail2 = 'top';
+      ids('rail2').value = c.rail2;
+    }
+    if(!isShortRail(c.thirdRail) || c.thirdRail === 'auto' || c.thirdRail === 'none'){
+      c.thirdRail = oppositeShort(c.rail1);
+      ids('thirdRail').value = c.thirdRail;
+    }
+    c.fourthRail = 'none';
+    ids('fourthRail').value = 'none';
+    return c;
+  }
+
+  function clcCorrectionModel(c, path, start, target, rawAttack, effectLevel, effectiveTips){
+    const angle = angleToFirstRail(start, rawAttack, c.rail1);
+    const len = path.length || 0;
+    const seqHuman = path.seq.map(r => railType(r)).join('-');
+    const effectHuman = c.english === 'neutral'
+      ? 'neutro 0'
+      : `${c.english === 'positive' ? 'positivo' : 'negativo'} ${effectLevel}`;
+
+    // Modelo conservador específico para corta-larga-corta.
+    // La geometría sigue mandando; el módulo solo compensa por efecto, golpe y entrada.
+    const sign = mirrorSign(c);
+    let familyPoints = sign * .70;
+
+    if(angle < 18) familyPoints *= .65;
+    else if(angle > 42) familyPoints *= 1.25;
+
+    if(len > 95) familyPoints *= 1.15;
+    if(len < 55) familyPoints *= .80;
+
+    const effectGain = .46;
+    const effectPoints = englishSign(c.english) * effectiveTips * effectGain;
+
+    const strokePoints = c.stroke === 'long'
+      ? .35
+      : (c.stroke === 'short' ? -.30 : -.12);
+
+    const totalRaw = familyPoints + effectPoints + strokePoints;
+
+    // Seguridad: no permitir que el módulo CLC deforme la figura.
+    const total = clamp(totalRaw, -5, 5);
+
+    return {
+      familyKey:'C-L-C',
+      familyHuman:'corta-larga-corta',
+      startZone:zonePoint(start),
+      arrivalZone:zonePoint(target),
+      angle,
+      angleText:angleClass(angle),
+      familyPoints,
+      effectPoints,
+      strokePoints,
+      totalRaw,
+      total,
+      anchor:null,
+      diagnosticText:`Familia detectada: corta-larga-corta / ${seqHuman} / salida ${zonePoint(start)} / llegada ${zonePoint(target)} / ${angleClass(angle)} / efecto ${effectHuman} / golpe ${strokeText(c.stroke)}`
+    };
+  }
+
+  function plusCorrectionModel(c, path, start, target, rawAttack, effectLevel, effectiveTips){
+    const angle = angleToFirstRail(start, rawAttack, c.rail1);
+    const len = path.length || 0;
+    const seqHuman = path.seq.map(r => railType(r)).join('-');
+    const effectHuman = c.english === 'neutral'
+      ? 'neutro 0'
+      : `${c.english === 'positive' ? 'positivo' : 'negativo'} ${effectLevel}`;
+
+    // Modelo conservador para vueltas largas y/o Plus.
+    // En estas vueltas la geometría de espejo suele quedar cerca, pero el efecto
+    // y el golpe tienden a desplazar el ataque en sentido contrario al usado en LKL.
+    const sign = -mirrorSign(c);
+
+    let familyPoints = sign * .95;
+
+    if(angle < 18) familyPoints *= .70;
+    else if(angle > 42) familyPoints *= 1.15;
+
+    if(len > 125) familyPoints *= 1.12;
+    else if(len < 85) familyPoints *= .85;
+
+    const effectGain = 0.55;
+    const effectPoints = -englishSign(c.english) * effectiveTips * effectGain;
+
+    const strokePoints = c.stroke === 'long'
+      ? sign * .45
+      : (c.stroke === 'short' ? -sign * .25 : -sign * .08);
+
+    const totalRaw = familyPoints + effectPoints + strokePoints;
+
+    // Seguridad: el módulo Plus no debe secuestrar la figura.
+    const total = clamp(totalRaw, -4.0, 4.0);
+
+    return {
+      familyKey:'PLUS',
+      familyHuman:'vueltas largas y/o plus',
+      startZone:zonePoint(start),
+      arrivalZone:zonePoint(target),
+      angle,
+      angleText:angleClass(angle),
+      familyPoints,
+      effectPoints,
+      strokePoints,
+      totalRaw,
+      total,
+      anchor:null,
+      diagnosticText:`Familia detectada: vueltas largas y/o Plus / ${seqHuman} / salida ${zonePoint(start)} / llegada ${zonePoint(target)} / ${angleClass(angle)} / efecto ${effectHuman} / golpe ${strokeText(c.stroke)}`
+    };
+  }
+
+  function foldCoord(v, max){
+    // Plegado tipo mesa extendida: si la geometría proyecta un punto por fuera
+    // del tramo visible de la banda, lo reingresa al tramo útil sin llevarlo
+    // artificialmente a una esquina. Esto mejora mucho las vueltas largas/Plus.
+    const period = max * 2;
+    let m = ((v % period) + period) % period;
+    return m <= max ? m : period - m;
+  }
+
+  function lineIntersectionWithRail(p, dir, rail){
+    const EPS = 1e-8;
+    let t = null;
+
+    if(rail === 'top'){
+      if(Math.abs(dir.y) < EPS) return null;
+      t = (0 - p.y) / dir.y;
+    } else if(rail === 'bottom'){
+      if(Math.abs(dir.y) < EPS) return null;
+      t = (TABLE.H - p.y) / dir.y;
+    } else if(rail === 'left'){
+      if(Math.abs(dir.x) < EPS) return null;
+      t = (0 - p.x) / dir.x;
+    } else if(rail === 'right'){
+      if(Math.abs(dir.x) < EPS) return null;
+      t = (TABLE.W - p.x) / dir.x;
+    }
+
+    if(t === null || !Number.isFinite(t) || t <= EPS) return null;
+
+    const q = {x:p.x + dir.x*t, y:p.y + dir.y*t};
+
+    if(rail === 'top' || rail === 'bottom'){
+      q.y = rail === 'top' ? 0 : TABLE.H;
+      q.x = foldCoord(q.x, TABLE.W);
+    } else {
+      q.x = rail === 'left' ? 0 : TABLE.W;
+      q.y = foldCoord(q.y, TABLE.H);
+    }
+    return q;
+  }
+
+  function forcedMirrorPath(start, target, seq){
+    let virtual = {...target};
+    for(let i = seq.length - 1; i >= 0; i--){
+      virtual = reflectPoint(virtual, seq[i]);
+    }
+
+    let dir = norm(sub(virtual, start));
+    let p = {...start};
+    const points = [{...start}];
+    let valid = true;
+    let length = 0;
+    const mismatches = [];
+    const hitRails = [];
+
+    for(const rail of seq){
+      let q = lineIntersectionWithRail(p, dir, rail);
+      if(!q){
+        const fallback = rayBoundary(p, dir);
+        if(!fallback){
+          valid = false;
+          mismatches.push(`no encontró ${railNames[rail]}`);
+          break;
+        }
+        q = fallback.point;
+        valid = false;
+        mismatches.push(`no pudo forzar ${railNames[rail]} con esta geometría`);
+      }
+
+      points.push(q);
+      hitRails.push(rail);
+      length += dist(p, q);
+      dir = reflectDir(dir, rail);
+      p = add(q, mul(dir, 1e-5));
+    }
+
+    points.push({...target});
+    length += dist(points[points.length - 2], target);
+
+    return {
+      valid,
+      points,
+      attack:points[1],
+      virtual,
+      hitRails,
+      mismatches,
+      length,
+      seq
+    };
+  }
+
+  function forcedVisualPathFromAttack(start, target, seq, attackPoint){
+    if(!attackPoint || !seq || seq.length === 0) return null;
+
+    const points = [{...start}, {...attackPoint}];
+    const remaining = seq.slice(1);
+
+    if(remaining.length === 0){
+      points.push({...target});
+      return {points, valid:true};
+    }
+
+    // Desde el ataque ya corregido, reconstruye visualmente la secuencia restante
+    // como restricción dura: segunda banda, tercera banda, etc.
+    // Esto es especialmente importante en corta-larga-corta.
+    let virtual = {...target};
+    for(let i = remaining.length - 1; i >= 0; i--){
+      virtual = reflectPoint(virtual, remaining[i]);
+    }
+
+    let p = {...attackPoint};
+    let dir = norm(sub(virtual, p));
+    let valid = true;
+
+    for(const rail of remaining){
+      let q = lineIntersectionWithRail(p, dir, rail);
+      if(!q){
+        const fallback = rayBoundary(p, dir);
+        if(!fallback){ valid = false; break; }
+        q = fallback.point;
+        valid = false;
+      }
+
+      points.push(q);
+      dir = reflectDir(dir, rail);
+      p = add(q, mul(dir, 1e-5));
+    }
+
+    points.push({...target});
+    return {points, valid};
+  }
+
   function visualPathFromAttack(start, target, seq, attackPoint){
     if(!attackPoint || !seq || seq.length === 0) return null;
 
@@ -778,6 +1148,8 @@
 
   function computeShot(){
     const c = controls();
+    if(c.systemMode === 'clc') enforceClcControls(c);
+    if(c.systemMode === 'plus') enforceLongTourControls(c);
     const neutralEnglish = c.english === 'neutral';
     const effectLevel = neutralEnglish ? 0 : c.tips;
     const effectiveTips = effectLevel/2;
@@ -800,12 +1172,19 @@
       target={...balls[firstBall]};
     }
 
-    const path = choosePath(start,target,c);
+    const forcedSeq = [c.rail1, c.rail2].concat(c.thirdRail && c.thirdRail !== 'none' && c.thirdRail !== 'auto' ? [c.thirdRail] : []).concat(c.fourthRail && c.fourthRail !== 'none' ? [c.fourthRail] : []);
+    const path = (c.systemMode === 'clc' || c.systemMode === 'plus')
+      ? forcedMirrorPath(start,target,forcedSeq)
+      : choosePath(start,target,c);
     const rawAttack = path.attack;
     const attackRawCoord = rawAttack ? railCoord(rawAttack,c.rail1) : NaN;
 
-    const model = conservativePremiumModel(c,path,start,target,rawAttack,effectLevel,effectiveTips);
-    const anchor = standardBreakAnchor(c, path, rawAttack, model.total);
+    const model = c.systemMode === 'clc'
+      ? clcCorrectionModel(c,path,start,target,rawAttack,effectLevel,effectiveTips)
+      : (c.systemMode === 'plus'
+        ? plusCorrectionModel(c,path,start,target,rawAttack,effectLevel,effectiveTips)
+        : conservativePremiumModel(c,path,start,target,rawAttack,effectLevel,effectiveTips));
+    const anchor = (c.systemMode === 'clc' || c.systemMode === 'plus') ? null : standardBreakAnchor(c, path, rawAttack, model.total);
     model.anchor = anchor;
     const correctionPoints = model.total + (anchor ? anchor.delta : 0);
     const attackCorrected = shiftAttack(rawAttack,c.rail1,correctionPoints);
@@ -819,7 +1198,9 @@
       objectInfo = {angle:ang, cut:classifyCut(ang), side:ang>=0?'hacia la izquierda de la línea de entrada':'hacia la derecha de la línea de entrada'};
     }
 
-    const visualPath = visualPathFromAttack(start, target, path.seq, attackCorrected);
+    const visualPath = (c.systemMode === 'clc' || c.systemMode === 'plus')
+      ? forcedVisualPathFromAttack(start, target, path.seq, attackCorrected)
+      : visualPathFromAttack(start, target, path.seq, attackCorrected);
     const shot = {c,path,displayPoints:(visualPath && visualPath.points) ? visualPath.points : path.points, visualPath, rawAttack,attackCorrected,attackRawCoord,attackCorrCoord,salida,llegada,correctionPoints,model,effectOffsetMm,effectiveTips,effectLevel,cueLine,objectInfo,start,target,firstBall,otherBall};
     currentShot = shot;
     renderResult(shot);
@@ -832,10 +1213,15 @@
     const anchorText = s.model.anchor
       ? `<br>Tiro ancla activo: <b>${s.model.anchor.name}</b>, ataque patrón <span class="mono">${fmt(s.model.anchor.targetAttack,1)}</span>, peso <span class="mono">${fmt(s.model.anchor.weight,2)}</span>, ajuste <span class="mono">${fmt(s.model.anchor.delta,2)}</span> puntos LKL.`
       : '';
+    const modeText = s.c.systemMode === 'clc'
+      ? 'Módulo corta-larga-corta, secuencia forzada'
+      : (s.c.systemMode === 'plus'
+        ? 'Módulo vueltas largas y/o Plus, secuencia escogida por el usuario'
+        : 'Modelo LKL conservador');
     ids('diagnostic').innerHTML =
       `<b>${s.model.diagnosticText}</b><br>` +
-      `Corrección interna conservadora: <span class="mono">${fmt(s.model.total,2)}</span> puntos LKL ` +
-      `(familia <span class="mono">${fmt(s.model.familyPoints,2)}</span>, efecto <span class="mono">${fmt(s.model.effectPoints,2)}</span>, golpe <span class="mono">${fmt(s.model.strokePoints,2)}</span>).` +
+      `${modeText}: <span class="mono">${fmt(s.model.total,2)}</span> puntos LKL ` +
+      `(familia/ángulo <span class="mono">${fmt(s.model.familyPoints,2)}</span>, efecto <span class="mono">${fmt(s.model.effectPoints,2)}</span>, golpe <span class="mono">${fmt(s.model.strokePoints,2)}</span>).` +
       anchorText;
   }
 
@@ -850,11 +1236,11 @@
       `<p><span class="pill">${modeText}</span></p>` +
       `${warning}` +
       `<p><b>Punto de ataque base geométrico:</b> ${railNames[c.rail1]}, punto LKL <span class="mono">${fmt(s.attackRawCoord,2)}</span>.</p>` +
-      `<p><b>Punto de ataque recomendado:</b> ${railNames[c.rail1]}, punto LKL <span class="mono">${fmt(s.attackCorrCoord,2)}</span>. Corrección interna total: <span class="mono">${fmt(s.correctionPoints,2)}</span> puntos LKL${s.model.anchor ? ' (incluye tiro ancla de salida)' : ''}.</p>` +
+      `<p><b>Punto de ataque recomendado:</b> ${railNames[c.rail1]}, punto LKL <span class="mono">${fmt(s.attackCorrCoord,2)}</span>. Corrección interna total: <span class="mono">${fmt(s.correctionPoints,2)}</span> puntos LKL${s.model.anchor ? ' (incluye tiro ancla de salida)' : ''}${c.systemMode === 'clc' ? ' (modo corta-larga-corta)' : ''}${c.systemMode === 'plus' ? ' (modo vueltas largas y/o Plus)' : ''}.</p>` +
       `<p><b>Lectura LKL interna:</b> salida <span class="mono">${fmt(s.salida,2)}</span>, llegada <span class="mono">${fmt(s.llegada,2)}</span>, ataque = salida − llegada = <span class="mono">${fmt(s.attackCorrCoord,2)}</span>.</p>` +
       `<p><b>Efecto:</b> ${englishText(c.english)}. Nivel <span class="mono">${s.effectLevel}</span>: <span class="mono">${fmt(s.effectiveTips,1)}</span> punta${s.effectiveTips===1?'':'s'}, <span class="mono">${fmt(s.effectOffsetMm,1)} mm</span> desde el centro. <b>Golpe:</b> ${strokeText(c.stroke)}.</p>` +
       `${strikeText}${difficult}` +
-      `<p class="small">Modelo conservador: la primera línea azul termina en el ataque recomendado; las siguientes líneas proyectan la secuencia elegida.</p>`;
+      `<p class="small">${c.systemMode === 'clc' ? 'Modo corta-larga-corta: la secuencia visual se fuerza como corta → larga → corta, y la primera línea azul termina en el ataque recomendado.' : (c.systemMode === 'plus' ? 'Modo vueltas largas y/o Plus: la app obedece la secuencia de bandas seleccionada, incluida la cuarta banda, y evita colapsar la trayectoria contra las esquinas.' : 'Modelo conservador: la primera línea azul termina en el ataque recomendado; las siguientes líneas proyectan la secuencia elegida.')}</p>`;
   }
 
   function draw(){ drawTable(); const shot=computeShot(); drawPath(shot); drawBalls(); }
@@ -864,7 +1250,7 @@
     ctx.save(); ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=28; ctx.shadowOffsetY=14;
     roundRect(ctx,x-rail,y-rail,w+rail*2,h+rail*2,22); ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--rail').trim(); ctx.fill();
     ctx.shadowBlur=0; ctx.shadowOffsetY=0; roundRect(ctx,x,y,w,h,13); ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--felt').trim(); ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1; ctx.stroke(); drawDiamonds(x,y,w,h,rail); drawStartMarks(); ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1; ctx.stroke(); drawDiamonds(x,y,w,h,rail); drawReferenceLines(); drawStartMarks(); ctx.restore();
   }
   function drawDiamonds(x,y,w,h,rail){
     ctx.save(); ctx.fillStyle='#f4d28b'; ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=1; const r=Math.max(2.5,geom.scale*.32);
@@ -875,7 +1261,55 @@
     for(let n=0;n<=40;n+=10){const py=y+h*(n/40); ctx.fillText(String(n),x-rail*.78,py); ctx.fillText(String(n),x+w+rail*.78,py)}
     ctx.restore();
   }
-  function drawStartMarks(){
+  
+  function drawReferenceLines(){
+    if(ids('showMarks').value === 'hide') return;
+    ctx.save();
+
+    // Líneas principales de diamante a diamante.
+    ctx.setLineDash([Math.max(3,geom.scale*.22), Math.max(5,geom.scale*.38)]);
+    ctx.lineWidth = Math.max(.8, geom.scale*.05);
+    ctx.strokeStyle = 'rgba(255,255,255,.11)';
+
+    // Verticales: 10 a 70 en las bandas largas.
+    for(let xv=10; xv<=70; xv+=10){
+      const a = worldToScreen({x:xv,y:0});
+      const b = worldToScreen({x:xv,y:40});
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+      ctx.stroke();
+    }
+
+    // Horizontales: 10, 20 y 30 entre bandas cortas.
+    for(let yh=10; yh<=30; yh+=10){
+      const a = worldToScreen({x:0,y:yh});
+      const b = worldToScreen({x:80,y:yh});
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+      ctx.stroke();
+    }
+
+    // Tres líneas horizontales adicionales, pasando por las marcas guía centrales del paño.
+    // Se dibujan con el mismo estilo visible de las otras líneas de referencia.
+    ctx.setLineDash([Math.max(3,geom.scale*.22), Math.max(5,geom.scale*.38)]);
+    ctx.lineWidth = Math.max(.8, geom.scale*.05);
+    ctx.strokeStyle = 'rgba(255,255,255,.11)';
+    for(const yh of [14.788732, 20.000000, 25.211268]){
+      const a = worldToScreen({x:0,y:yh});
+      const b = worldToScreen({x:80,y:yh});
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+function drawStartMarks(){
     if(ids('showMarks').value === 'hide') return;
     ctx.save(); const r=Math.max(2.8,geom.scale*.30); ctx.fillStyle='rgba(255,255,255,.74)'; ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1;
     for(const m of START_MARKS){const p=worldToScreen(m); ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill(); ctx.stroke()}
@@ -1158,6 +1592,13 @@
   document.querySelectorAll('select,input').forEach(el=>{
     if(el.classList.contains('posCm') || el.classList.contains('posRef')) return;
     el.addEventListener('input',draw);
+  });
+
+  ids('systemMode').addEventListener('change', () => {
+    const c = controls();
+    if(c.systemMode === 'clc') enforceClcControls(c);
+    if(c.systemMode === 'plus') enforceLongTourControls(c);
+    draw();
   });
   ids('recalc').addEventListener('click',draw);
   ids('reset').addEventListener('click',()=>{

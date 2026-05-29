@@ -1379,40 +1379,45 @@ function drawStartMarks(){
 
   function drawAttackLabel(q, label){
     ctx.save();
+
     const fontSize = Math.max(27, geom.scale*2.925);
     ctx.font = `800 ${fontSize}px ui-sans-serif, system-ui`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = 'rgba(0,0,0,.66)';
-    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
 
     const metrics = ctx.measureText(label);
     const textW = metrics.width;
     const textH = fontSize * 1.15;
-    const margin = Math.max(8, geom.scale * 0.45);
 
-    // Límites de seguridad: preferimos mantener el letrero dentro del canvas visible.
-    const minX = margin;
-    const maxX = Math.max(minX, geom.w - textW - margin);
-    const minY = textH + margin;
-    const maxY = Math.max(minY, geom.h - margin);
+    // Límites del paño azul claro. El letrero no debe invadir las bandas
+    // ni tapar la numeración de los diamantes.
+    const feltLeft = geom.ox;
+    const feltTop = geom.oy;
+    const feltRight = geom.ox + TABLE.W * geom.scale;
+    const feltBottom = geom.oy + TABLE.H * geom.scale;
+    const margin = Math.max(10, geom.scale * 0.70);
 
-    // Posición preferida: a la derecha y arriba de la mira.
-    let x = q.x + 14;
-    let y = q.y - 12;
+    // Posición preferida: cerca de la mira, pero dentro del paño.
+    let x = q.x + Math.max(14, geom.scale * .85);
+    let y = q.y - Math.max(12, geom.scale * .70);
 
-    // Si se sale por la derecha, lo pone a la izquierda de la mira.
-    if(x + textW > geom.w - margin){
-      x = q.x - textW - 18;
+    // Si no cabe a la derecha de la mira, se mueve a la izquierda.
+    if(x + textW > feltRight - margin){
+      x = q.x - textW - Math.max(16, geom.scale * .95);
     }
 
-    // Si se sale por la izquierda o por arriba/abajo, lo ajusta suavemente.
-    x = clamp(x, minX, maxX);
-    y = clamp(y, minY, maxY);
+    // Encerrar estrictamente dentro del paño.
+    x = clamp(x, feltLeft + margin, feltRight - margin - textW);
+    y = clamp(y, feltTop + margin + textH/2, feltBottom - margin - textH/2);
+
+    // Contorno negro más fino para no dificultar la lectura.
+    ctx.lineWidth = Math.max(2.2, fontSize * .075);
+    ctx.strokeStyle = 'rgba(0,0,0,.72)';
+    ctx.fillStyle = '#ffffff';
 
     ctx.strokeText(label, x, y);
     ctx.fillText(label, x, y);
+
     ctx.restore();
   }
 

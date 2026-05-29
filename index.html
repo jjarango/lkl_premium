@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#2b4495" />
   <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Asistente%20LKL%203%20Bandas%22%2C%22short_name%22%3A%22LKL%203B%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23101217%22%2C%22theme_color%22%3A%22%232b4495%22%7D" />
-  <title>Asistente LKL / Base 50 para billar a 3 bandas - Plus plegado</title>
+  <title>Asistente LKL / Base 50 para billar a 3 bandas - LKL secuencia estricta</title>
   <style>
     :root{
       --bg:#101217;
@@ -164,8 +164,8 @@
 <body>
   <header>
     <div>
-      <h1>Tres bandas | <span style="color:#fc0202;">Juan José Arango E.</span></h1>
-      <div class="subtitle">Posicione las bolas, elija la secuencia y ajuste el efecto y el tipo de golpe. El cálculo combina geometría de diamantes con correcciones calibrables y aprendizaje de acuerdo con la familia de cada tiro. V 25.</div>
+      <h1>Asistente LKL / Base 50 para billar a 3 bandas</h1>
+      <div class="subtitle">Arrastre las bolas, elija la secuencia y ajuste efecto/golpe. El cálculo usa una mesa patrón premium. Permite alternar entre LKL/Base 50, corta-larga-corta y vueltas largas y/o Plus. Versión optimizada para iPad en orientación vertical.</div>
     </div>
   </header>
 
@@ -1146,6 +1146,41 @@
     return {points, valid};
   }
 
+  function isStrictLklSequence(c){
+    // En LKL normal, si el usuario fija explícitamente la tercera banda
+    // o agrega cuarta banda, la app debe obedecer esa secuencia en cálculo y dibujo.
+    // Si la tercera está en "Automática", se conserva el comportamiento anterior.
+    return c.systemMode === 'lkl' && (
+      (c.thirdRail !== 'auto' && c.thirdRail !== 'none') ||
+      c.fourthRail !== 'none'
+    );
+  }
+
+  function sequenceCompatibilityWarning(start, seq, attackPoint){
+    if(!attackPoint || !seq || seq.length < 2) return null;
+
+    // Primera banda ya está impuesta por el ataque. Desde ahí miramos qué banda
+    // tocaría físicamente la bola si la dejáramos correr libremente.
+    let dir = reflectDir(norm(sub(attackPoint, start)), seq[0]);
+    let p = add(attackPoint, mul(dir, 1e-5));
+
+    for(let i = 1; i < seq.length; i++){
+      const hit = rayBoundary(p, dir);
+      if(!hit){
+        return `Con este ataque, la trayectoria no encuentra una continuación clara hacia ${railNames[seq[i]]}.`;
+      }
+
+      if(hit.rail !== seq[i]){
+        return `Con este ataque, la bola toca primero la ${railNames[hit.rail]} antes que la ${railNames[seq[i]]}.`;
+      }
+
+      dir = reflectDir(dir, hit.rail);
+      p = add(hit.point, mul(dir, 1e-5));
+    }
+
+    return null;
+  }
+
   function computeShot(){
     const c = controls();
     if(c.systemMode === 'clc') enforceClcControls(c);
@@ -1173,7 +1208,8 @@
     }
 
     const forcedSeq = [c.rail1, c.rail2].concat(c.thirdRail && c.thirdRail !== 'none' && c.thirdRail !== 'auto' ? [c.thirdRail] : []).concat(c.fourthRail && c.fourthRail !== 'none' ? [c.fourthRail] : []);
-    const path = (c.systemMode === 'clc' || c.systemMode === 'plus')
+    const strictLkl = isStrictLklSequence(c);
+    const path = (c.systemMode === 'clc' || c.systemMode === 'plus' || strictLkl)
       ? forcedMirrorPath(start,target,forcedSeq)
       : choosePath(start,target,c);
     const rawAttack = path.attack;
@@ -1198,10 +1234,11 @@
       objectInfo = {angle:ang, cut:classifyCut(ang), side:ang>=0?'hacia la izquierda de la línea de entrada':'hacia la derecha de la línea de entrada'};
     }
 
-    const visualPath = (c.systemMode === 'clc' || c.systemMode === 'plus')
+    const visualPath = (c.systemMode === 'clc' || c.systemMode === 'plus' || strictLkl)
       ? forcedVisualPathFromAttack(start, target, path.seq, attackCorrected)
       : visualPathFromAttack(start, target, path.seq, attackCorrected);
-    const shot = {c,path,displayPoints:(visualPath && visualPath.points) ? visualPath.points : path.points, visualPath, rawAttack,attackCorrected,attackRawCoord,attackCorrCoord,salida,llegada,correctionPoints,model,effectOffsetMm,effectiveTips,effectLevel,cueLine,objectInfo,start,target,firstBall,otherBall};
+    const sequenceWarning = strictLkl ? sequenceCompatibilityWarning(start, path.seq, attackCorrected) : null;
+    const shot = {c,path,displayPoints:(visualPath && visualPath.points) ? visualPath.points : path.points, visualPath, sequenceWarning, rawAttack,attackCorrected,attackRawCoord,attackCorrCoord,salida,llegada,correctionPoints,model,effectOffsetMm,effectiveTips,effectLevel,cueLine,objectInfo,start,target,firstBall,otherBall};
     currentShot = shot;
     renderResult(shot);
     updateDiagnostic(shot);
@@ -1228,19 +1265,20 @@
   function renderResult(s){
     const c=s.c, routeNames=s.path.seq.map(r=>railNames[r]).join(' → ');
     const warning = !s.path.valid ? `<p class="bad"><b>Advertencia:</b> ${s.path.mismatches.join('; ')}.</p>` : `<p class="good"><b>Ruta geométrica válida:</b> ${routeNames}.</p>`;
+    const strictWarning = s.sequenceWarning ? `<p class="warn"><b>Advertencia de secuencia:</b> ${s.sequenceWarning}</p>` : '';
     const modeText = c.mode === 'ballFirst' ? `Blanca → ${ballNames[s.firstBall]} → ${routeNames} → ${ballNames[s.otherBall]}` : `Blanca → ${routeNames} → ${ballNames[s.firstBall]}`;
     const strikeText = c.mode === 'ballFirst' ? `<p><b>Por dónde tacar:</b> dirija la blanca a la <b>${ballNames[s.firstBall]}</b> para que después del contacto salga <b>${s.objectInfo?.side || '—'}</b>. Cantidad de bola estimada: <b>${s.objectInfo?.cut || '—'}</b> <span class="mono">(${fmt(s.objectInfo?.angle || 0,1)}°)</span>.</p>` : `<p><b>Por dónde tacar:</b> envíe la blanca directamente al punto de ataque marcado sobre la <b>${railNames[c.rail1]}</b>.</p>`;
     const difficult = s.objectInfo && Math.abs(s.objectInfo.angle) > 75 ? `<p class="warn"><b>Tiro delicado:</b> el ángulo de salida después de la primera bola es grande.</p>` : '';
     ids('result').innerHTML =
       `<h2>Resultado calculado</h2>` +
       `<p><span class="pill">${modeText}</span></p>` +
-      `${warning}` +
+      `${warning}${strictWarning}` +
       `<p><b>Punto de ataque base geométrico:</b> ${railNames[c.rail1]}, punto LKL <span class="mono">${fmt(s.attackRawCoord,2)}</span>.</p>` +
       `<p><b>Punto de ataque recomendado:</b> ${railNames[c.rail1]}, punto LKL <span class="mono">${fmt(s.attackCorrCoord,2)}</span>. Corrección interna total: <span class="mono">${fmt(s.correctionPoints,2)}</span> puntos LKL${s.model.anchor ? ' (incluye tiro ancla de salida)' : ''}${c.systemMode === 'clc' ? ' (modo corta-larga-corta)' : ''}${c.systemMode === 'plus' ? ' (modo vueltas largas y/o Plus)' : ''}.</p>` +
       `<p><b>Lectura LKL interna:</b> salida <span class="mono">${fmt(s.salida,2)}</span>, llegada <span class="mono">${fmt(s.llegada,2)}</span>, ataque = salida − llegada = <span class="mono">${fmt(s.attackCorrCoord,2)}</span>.</p>` +
       `<p><b>Efecto:</b> ${englishText(c.english)}. Nivel <span class="mono">${s.effectLevel}</span>: <span class="mono">${fmt(s.effectiveTips,1)}</span> punta${s.effectiveTips===1?'':'s'}, <span class="mono">${fmt(s.effectOffsetMm,1)} mm</span> desde el centro. <b>Golpe:</b> ${strokeText(c.stroke)}.</p>` +
       `${strikeText}${difficult}` +
-      `<p class="small">${c.systemMode === 'clc' ? 'Modo corta-larga-corta: la secuencia visual se fuerza como corta → larga → corta, y la primera línea azul termina en el ataque recomendado.' : (c.systemMode === 'plus' ? 'Modo vueltas largas y/o Plus: la app obedece la secuencia de bandas seleccionada, incluida la cuarta banda, y evita colapsar la trayectoria contra las esquinas.' : 'Modelo conservador: la primera línea azul termina en el ataque recomendado; las siguientes líneas proyectan la secuencia elegida.')}</p>`;
+      `<p class="small">${c.systemMode === 'clc' ? 'Modo corta-larga-corta: la secuencia visual se fuerza como corta → larga → corta, y la primera línea azul termina en el ataque recomendado.' : (c.systemMode === 'plus' ? 'Modo vueltas largas y/o Plus: la app obedece la secuencia de bandas seleccionada, incluida la cuarta banda, y evita colapsar la trayectoria contra las esquinas.' : (isStrictLklSequence(c) ? 'Modo LKL con secuencia fijada: la app respeta la segunda, tercera y cuarta banda escogidas; si el ataque no es compatible, muestra advertencia de secuencia.' : 'Modelo conservador: la primera línea azul termina en el ataque recomendado; las siguientes líneas proyectan la secuencia elegida.'))}</p>`;
   }
 
   function draw(){ drawTable(); const shot=computeShot(); drawPath(shot); drawBalls(); }
